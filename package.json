@@ -8,8 +8,21 @@
     "start": "next start"
   },
   "dependencies": {
+    "@chakra-ui/core": "^0.8.0",
+    "@chakra-ui/react": "^1.0.3",
+    "@emotion/react": "^11.1.2",
+    "@emotion/styled": "^11.0.0",
+    "@symblai/react-elements": "^0.5.0",
+    "clsx": "^1.1.1",
+    "date-fns": "^2.16.1",
+    "emotion-theming": "^11.0.0",
+    "framer-motion": "^2.9.5",
     "next": "10.0.3",
     "react": "17.0.1",
-    "react-dom": "17.0.1"
+    "react-content-loader": "^5.1.4",
+    "react-dom": "17.0.1",
+    "react-error-boundary": "^3.1.0",
+    "react-highlight-words": "^0.16.0",
+    "valid-url": "^1.0.9"
   }
 }

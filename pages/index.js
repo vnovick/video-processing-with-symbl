@@ -1,65 +1,168 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import React, {useState, useRef, useEffect} from 'react'
+import {
+  SimpleGrid,
+  Box,
+  Container,
+  Heading,
+  Button,
+  Text,
+  AspectRatio,
+  Divider,
+  Input,
+  InputGroup,
+  List,
+  ListItem,
+  Badge,
+} from '@chakra-ui/react'
+import Header from '../components/header'
+import ProtectedPage from '../components/protectedPage'
+import {useAuth, useInterval} from '../hooks'
 
 export default function Home() {
+  const [file, setFile] = useState('')
+  const [videoSrc, setVideoSrc] = useState('')
+  const videoRef = useRef(null)
+  const {token} = useAuth()
+  const [conversationId, setConversationId] = useState(null)
+  const [jobId, setJobId] = useState(null)
+  const [submitted, setSubmitted] = useState(false)
+  const [status, setStatus] = useState('not started')
+  const [messages, setMessages] = useState([])
+
+  console.log(messages)
+  useEffect(() => {
+    const src = URL.createObjectURL(new Blob([file], {type: 'video/mp4'}))
+    setVideoSrc(src)
+  }, [file])
+
+  useEffect(() => {
+    if (status === 'completed') {
+      getTranscripts()
+    }
+  }, [status])
+
+  useInterval(
+    () => {
+      fetch(`https://api.symbl.ai/v1/job/${jobId}`, {
+        method: 'GET',
+        headers: {
+          'x-api-key': token,
+        },
+      })
+        .then((rawResult) => rawResult.json())
+        .then((result) => setStatus(result.status))
+    },
+    1000,
+    status === 'completed' || (status !== 'not_started' && !jobId),
+  )
+
+  const getTranscripts = () => {
+    fetch(`https://api.symbl.ai/v1/conversations/${conversationId}/messages`, {
+      method: 'GET',
+      headers: {
+        'x-api-key': token,
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+    })
+      .then((rawResult) => rawResult.json())
+      .then((result) => setMessages(result.messages))
+  }
+
+  const submitFileForProcessing = (file) => {
+    fetch('https://api.symbl.ai/v1/process/video', {
+      method: 'POST',
+      headers: {
+        'x-api-key': token,
+        'Content-Type': 'video/mp4',
+      },
+      body: file,
+      json: true,
+    })
+      .then((rawResult) => rawResult.json())
+      .then((result) => {
+        console.log(result)
+        setConversationId(result.conversationId)
+        setJobId(result.jobId)
+        setStatus('in_progress')
+      })
+  }
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+    <ProtectedPage>
+      <Container maxWidth="1200px">
+        <Box marginBottom="1rem">
+          <InputGroup marginBottom="2rem">
+            <Input
+              type="file"
+              id="input"
+              accept="audio/*, video/*"
+              onChange={(e) => setFile(e.target.files[0])}
+            />
+          </InputGroup>
+          <Box bg="lightgrey" marginBottom="1rem">
+            <AspectRatio maxH="100%" ratio={16 / 9}>
+              <video
+                id="video-summary"
+                autoPlay
+                ref={videoRef}
+                controls
+                src={videoSrc}
+              />
+            </AspectRatio>
+          </Box>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
+          <Button
+            colorScheme="teal"
+            size="md"
+            disabled={submitted}
+            onClick={() => {
+              setSubmitted(true)
+              submitFileForProcessing(file)
+            }}
           >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+            {`Submit file for processing`}
+          </Button>
+          <Heading size="md" as="h4">
+            {status === 'not started'
+              ? ''
+              : status === 'in_progress'
+              ? 'processing'
+              : status}
+          </Heading>
+        </Box>
+        <Divider orientation="horizontal" />
+        <Heading>Processing Data</Heading>
+        <SimpleGrid
+          columns={2}
+          spacingX="40px"
+          spacingY="20px"
+          marginTop="1rem"
         >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
+          <Box boxShadow="dark-lg" p="6" rounded="md" bg="white">
+            <Container margin="1rem">
+              <Heading as="h4" size="md">
+                Transcripts pulled from Conversation API
+              </Heading>
+              <List spacing={3} margin="2rem">
+                {messages.map((message) => (
+                  <ListItem>
+                    <Container>
+                      <Text fontSize="lg">{message.text}</Text>
+                      <Badge colorScheme="green">
+                        {`${new Date(
+                          message.startTime,
+                        ).toDateString()} ${new Date(
+                          message.startTime,
+                        ).toTimeString()}`}
+                      </Badge>
+                    </Container>
+                  </ListItem>
+                ))}
+              </List>
+            </Container>
+          </Box>
+        </SimpleGrid>
+      </Container>
+    </ProtectedPage>
   )
 }
